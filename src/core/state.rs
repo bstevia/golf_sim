@@ -5,7 +5,9 @@ use super::deck::Deck;
 use super::grid::PlayerGrid;
 use super::scoring::score_grid;
 use rand::rng;
+use rand::rngs::StdRng;
 use rand::Rng;
+use rand::SeedableRng;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Phase {
@@ -24,6 +26,10 @@ pub struct GameState {
     pub discard: Vec<Card>,
     pub phase: Phase,
     pub knocked_by: Option<usize>,
+    /// Times the discard has been reshuffled into the stock.
+    pub reshuffles: u32,
+    /// Seeded from `new_with_rng` so reshuffles stay reproducible.
+    rng: StdRng,
     final_turns_remaining: Option<usize>,
 }
 
@@ -35,8 +41,11 @@ impl GameState {
     pub fn new_with_rng<R: Rng>(config: GameConfig, rng: &mut R) -> Result<Self, ConfigError> {
         config.validate()?;
 
+        // Kept for the rest of the game so a later reshuffle stays seeded.
+        let mut internal_rng = StdRng::from_rng(rng);
+
         let mut shoe = Deck::new(config.num_decks);
-        shoe.shuffle_with(rng);
+        shoe.shuffle_with(&mut internal_rng);
 
         let per_player = config.cards_per_player();
         let mut grids = Vec::with_capacity(config.num_players);
@@ -63,6 +72,8 @@ impl GameState {
             discard,
             phase,
             knocked_by: None,
+            reshuffles: 0,
+            rng: internal_rng,
             final_turns_remaining: None,
         })
     }
@@ -179,8 +190,9 @@ impl GameState {
             }
             let top = self.discard.pop().expect("checked non-empty above");
             let rest = std::mem::take(&mut self.discard);
-            self.stock.refill_and_shuffle(rest);
+            self.stock.refill_and_shuffle(rest, &mut self.rng);
             self.discard.push(top);
+            self.reshuffles += 1;
         }
         Ok(self.stock.deal().expect("refilled or already had cards"))
     }

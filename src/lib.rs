@@ -1,9 +1,13 @@
+pub mod agent;
 pub mod core;
+pub mod repr;
 
+pub use agent::{eval_head_to_head, play_match, Agent, HeuristicAgent, MatchResult, RandomAgent};
 pub use core::{
     Action, ActionError, Card, Cell, ConfigError, Deck, DrawSource, GameConfig, GameState, Phase,
     PlayerGrid, Rank, Suit,
 };
+pub use repr::{ActionSpace, CellView, Encoder, GridView, Observation, TurnView};
 
 #[cfg(test)]
 mod tests {
@@ -140,5 +144,50 @@ mod tests {
         }
         assert!(saw_empty_stock, "test setup should actually exercise the reshuffle path");
         assert!(state.knocked_by.is_some());
+    }
+
+    /// Regression test for a bug where a mid-game reshuffle drew from the
+    /// thread-local RNG instead of the seeded one threaded through
+    /// `new_with_rng`, so any hand that emptied the stock silently stopped
+    /// being reproducible from its seed. Replays the same seed twice - for the
+    /// setup RNG driving action choices *and* the engine's internal RNG - and
+    /// requires the two playouts to make identical choices ply by ply,
+    /// including through at least one reshuffle.
+    #[test]
+    fn seeded_playout_is_reproducible_across_a_reshuffle() {
+        let config = GameConfig {
+            num_players: 8,
+            num_decks: 1,
+            grid_rows: 2,
+            grid_cols: 3,
+            reveal_count: 2,
+            final_turns_for_others: true,
+        };
+
+        let run = |seed: u64| {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let mut state = GameState::new_with_rng(config.clone(), &mut rng).unwrap();
+            let mut actions = Vec::new();
+            let mut saw_empty_stock = false;
+            let mut steps = 0;
+            while !state.is_round_over() {
+                if state.stock.is_empty() {
+                    saw_empty_stock = true;
+                }
+                let action = *state.legal_actions().choose(&mut rng).unwrap();
+                actions.push(action);
+                state.apply(action).unwrap();
+                steps += 1;
+                assert!(steps < 200_000, "playout did not terminate");
+            }
+            (actions, state.scores(), saw_empty_stock)
+        };
+
+        let (actions_a, scores_a, saw_empty_a) = run(9);
+        let (actions_b, scores_b, saw_empty_b) = run(9);
+
+        assert!(saw_empty_a && saw_empty_b, "test setup should actually exercise the reshuffle path");
+        assert_eq!(actions_a, actions_b, "same seed must draw the same actions at every ply");
+        assert_eq!(scores_a, scores_b, "same seed must produce the same final scores");
     }
 }

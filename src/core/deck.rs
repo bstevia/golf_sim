@@ -41,8 +41,9 @@ impl Deck {
         self.cards.is_empty()
     }
 
-    pub fn refill_and_shuffle(&mut self, cards: Vec<Card>) {
+    /// Takes an explicit RNG so a reshuffle stays reproducible under a seed.
+    pub fn refill_and_shuffle<R: Rng>(&mut self, cards: Vec<Card>, rng: &mut R) {
         self.cards = cards;
-        self.shuffle();
+        self.shuffle_with(rng);
     }
 }
