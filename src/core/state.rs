@@ -28,6 +28,12 @@ pub struct GameState {
     pub knocked_by: Option<usize>,
     /// Times the discard has been reshuffled into the stock.
     pub reshuffles: u32,
+    /// Turns completed so far (one per `Swap`/`DiscardDrawn`). Unlike
+    /// `reshuffles`, this advances every turn no matter which pile a player
+    /// draws from - draw-discard-then-discard-it-back changes neither the
+    /// stock nor the discard pile's size, so `reshuffles` alone can't be used
+    /// to detect a stalled game.
+    pub turns: u64,
     /// Seeded from `new_with_rng` so reshuffles stay reproducible.
     rng: StdRng,
     final_turns_remaining: Option<usize>,
@@ -73,6 +79,7 @@ impl GameState {
             phase,
             knocked_by: None,
             reshuffles: 0,
+            turns: 0,
             rng: internal_rng,
             final_turns_remaining: None,
         })
@@ -198,6 +205,7 @@ impl GameState {
     }
 
     fn complete_turn(&mut self, player_who_acted: usize) {
+        self.turns += 1;
         let already_in_final_turns = self.knocked_by.is_some();
 
         if !already_in_final_turns && self.grids[player_who_acted].is_all_face_up() {

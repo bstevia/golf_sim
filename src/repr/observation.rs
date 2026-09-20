@@ -43,7 +43,8 @@ pub struct GridView {
 }
 
 impl GridView {
-    #[cfg(test)]
+    /// Builds a grid straight from cell views - used by tests and by
+    /// `NeuralAgent` to construct hypothetical positions for its lookahead.
     pub(crate) fn from_cells(rows: usize, cols: usize, cells: &[CellView]) -> GridView {
         assert_eq!(cells.len(), rows * cols);
         GridView { rows, cols, cells: cells.to_vec() }
@@ -165,6 +166,10 @@ pub struct Observation {
     /// nonzero, `unseen` is no longer exact - the stock and face-down cells
     /// stop being truly interchangeable.
     pub reshuffles: u32,
+    /// Turns completed so far - see `GameState::turns`. A more reliable
+    /// "how long has this game dragged on" signal than `reshuffles`, since
+    /// it advances every turn regardless of draw source.
+    pub turns: u64,
     /// Seat of the player who went out, relative to the observer.
     pub knocked_by: Option<usize>,
     pub turn: TurnView,
@@ -226,6 +231,7 @@ impl Observation {
             stock_remaining: state.stock.remaining(),
             unseen,
             reshuffles: state.reshuffles,
+            turns: state.turns,
             knocked_by: state
                 .knocked_by
                 .map(|knocker| (knocker + num_players - seat) % num_players),

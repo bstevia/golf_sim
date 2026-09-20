@@ -28,7 +28,7 @@ impl Agent for HeuristicAgent {
                 let (best_index, delta) = best_swap_delta(grid, &obs.unseen, unseen_ev, drawn);
                 if delta < 0.0 {
                     best_index
-                } else if obs.reshuffles >= PATIENCE_RESHUFFLES {
+                } else if obs.turns >= PATIENCE_TURNS {
                     force_progress(grid, &obs.unseen, unseen_ev, drawn).unwrap_or_else(|| space.discard_drawn())
                 } else {
                     space.discard_drawn()
@@ -44,7 +44,7 @@ impl Agent for HeuristicAgent {
 
 /// Reveals the face-down cell in the column with fewest face-up cells so far
 /// (ties: lowest column, then row). Spreads opening reveals across columns.
-fn choose_reveal(grid: &GridView) -> usize {
+pub(super) fn choose_reveal(grid: &GridView) -> usize {
     let cols = grid.cols();
     (0..grid.len())
         .filter(|&i| !grid.cell(i).is_known())
@@ -58,9 +58,11 @@ fn choose_reveal(grid: &GridView) -> usize {
 
 /// Guards against a real deadlock: four identical greedy agents can all find
 /// every draw worse than waiting at once, so nobody swaps and the round never
-/// ends. `reshuffles` is public, so once it passes this, everyone forces
-/// progress on their own next turn instead of discarding forever.
-const PATIENCE_RESHUFFLES: u32 = 3;
+/// ends. `turns` is public and strictly increasing every turn (unlike
+/// `reshuffles`, which can stay at zero forever if nobody happens to draw
+/// from the stock), so once it passes this, everyone forces progress on
+/// their own next turn instead of discarding forever.
+const PATIENCE_TURNS: u64 = 300;
 
 /// Best cell to place `drawn` into, and the resulting change in that column's
 /// expected value (negative = improvement). Ties favor the lowest index.

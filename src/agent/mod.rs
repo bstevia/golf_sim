@@ -3,10 +3,12 @@
 
 pub mod eval;
 pub mod heuristic;
+pub mod neural;
 pub mod random;
 
 pub use eval::{eval_head_to_head, play_match, MatchResult};
 pub use heuristic::HeuristicAgent;
+pub use neural::NeuralAgent;
 pub use random::RandomAgent;
 
 use crate::repr::{ActionSpace, Observation};

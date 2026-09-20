@@ -1,12 +1,16 @@
 pub mod agent;
 pub mod core;
+pub mod nn;
 pub mod repr;
 
-pub use agent::{eval_head_to_head, play_match, Agent, HeuristicAgent, MatchResult, RandomAgent};
+pub use agent::{
+    eval_head_to_head, play_match, Agent, HeuristicAgent, MatchResult, NeuralAgent, RandomAgent,
+};
 pub use core::{
     Action, ActionError, Card, Cell, ConfigError, Deck, DrawSource, GameConfig, GameState, Phase,
     PlayerGrid, Rank, Suit,
 };
+pub use nn::ValueNet;
 pub use repr::{ActionSpace, CellView, Encoder, GridView, Observation, TurnView};
 
 #[cfg(test)]
